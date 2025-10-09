@@ -1,0 +1,126 @@
+<!-- 
+Title: TeamRetro Feedback Tracker
+Author: Apo Ilgun & ChatGPT
+Date: 10/03/2025
+Version: 1.0 
+Description: This interactive feedback tracker lets learners view real-time comments submitted to a Google Form
+embed within the Rise course. The script reads the data from the responses' Google Sheet via the OpenSheet API 
+and displays the comments as clean comment cards. The tool encourages peer reflection and engagement by showcasing 
+collective insights directly within the learning module.
+-->
+
+<div id="note">
+  <strong>See your fellow R&amp;D pros' comments here.</strong><br>
+  Note that it might take a little while for your comment to appear and you may have to reload the page. 
+  As soon as you see the “Your respone has been recorded” message in the form above, your input has been captured.
+</div>
+
+<div id="comments-container">
+  <!-- Static fallback responses -->
+  <div class="comment-card">
+    <div style="font-weight:bold; color:#2c3e50; margin-bottom:4px;">Kakashi Hatake</div>
+    <div style="color:#444; font-size:0.85em; margin-bottom:6px;">
+      <strong>Score:</strong> 5 &nbsp;|&nbsp; <em>Sample Entry</em>
+    </div>
+    <div style="color:#333; font-size:1em; line-height:1.4;">
+      Having the option to respond anonymously allows my team to speak up freely, even when they’d normally hold back. It helps us surface real issues.
+    </div>
+  </div>
+
+  <div class="comment-card">
+    <div style="font-weight:bold; color:#2c3e50; margin-bottom:4px;">Levi Ackerman</div>
+    <div style="color:#444; font-size:0.85em; margin-bottom:6px;">
+      <strong>Score:</strong> 4 &nbsp;|&nbsp; <em>Sample Entry</em>
+    </div>
+    <div style="color:#333; font-size:1em; line-height:1.4;">
+      Using a structured template for retrospectives keeps us focused and efficient. It’s much better than having conversations drift without direction.
+    </div>
+  </div>
+
+  <div class="comment-card">
+    <div style="font-weight:bold; color:#2c3e50; margin-bottom:4px;">Monkey D. Luffy</div>
+    <div style="color:#444; font-size:0.85em; margin-bottom:6px;">
+      <strong>Score:</strong> 5 &nbsp;|&nbsp; <em>Sample Entry</em>
+    </div>
+    <div style="color:#333; font-size:1em; line-height:1.4;">
+      It would be fun to add a quick round where everyone shares one positive highlight before diving into the tough stuff. That way, the team starts on a high note.
+    </div>
+  </div>
+</div>
+
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #7ee2e6; /* whole embed background */
+    font-family: sans-serif;
+  }
+  #note {
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #2c3e50;
+    max-width: 600px;
+    margin: 0 auto 10px auto;
+    background: rgba(255,255,255,0.7);
+    border-radius: 6px;
+  }
+  #comments-container {
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .comment-card {
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+</style>
+
+<script>
+  async function loadComments() {
+    const sheetId = "15uj2vsBKozEXsYmuEitvgRlHXYqqSCi-2bVJKYoM3Fk";
+    const sheetName = "responses"; 
+    const url = `https://opensheet.elk.sh/${sheetId}/${sheetName}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Network response was not OK");
+      const data = await response.json();
+
+      // If data is available, replace the static sample responses
+      if (data.length > 0) {
+        const container = document.getElementById("comments-container");
+        container.innerHTML = ""; // clear static examples
+
+        data.forEach(row => {
+          const timestamp = row["Timestamp"] || "";
+          const name = row["What is your name?"] || "Anonymous";
+          const score = row["In your opinion, how likely is it that TeamRetro would improve your team's retrospectives?"] || "";
+          const comment = row["Any comments on TeamRetro or ideas for using it to improve your retrospectives?"] || "";
+
+          const card = document.createElement("div");
+          card.className = "comment-card";
+          card.innerHTML = `
+            <div style="font-weight:bold; color:#2c3e50; margin-bottom:4px;">${name}</div>
+            <div style="color:#444; font-size:0.85em; margin-bottom:6px;">
+              <strong>Score:</strong> ${score} &nbsp;|&nbsp; <em>${timestamp}</em>
+            </div>
+            <div style="color:#333; font-size:1em; line-height:1.4;">${comment}</div>
+          `;
+          container.appendChild(card);
+        });
+      }
+    } catch (err) {
+      console.error("Error loading spreadsheet data:", err);
+      // do nothing - fallback samples remain visible
+    }
+  }
+
+  loadComments();
+</script>
