@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Halloween Fear Lab — Interactive</title>
+<style>
+  :root{--bg:#0b0f17;--card:#0f1720;--accent:#ff6b6b;--muted:#9aa4b2;--glass:rgba(255,255,255,0.04)}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#05060a 0%, #0b0f17 60%);color:#e6eef6}
+  .wrap{max-width:1200px;margin:28px auto;padding:20px;display:grid;grid-template-columns:360px 1fr;gap:18px}
+  .panel{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(0,0,0,0.6)}
+  h1{margin:0 0 8px;font-size:20px}
+  .controls{display:flex;flex-direction:column;gap:12px}
+  .sl{display:flex;align-items:center;gap:10px}
+  label{flex:0 0 120px;font-size:13px;color:var(--muted)}
+  input[type=range]{flex:1}
+  .metric{background:var(--glass);padding:10px;border-radius:8px;text-align:center}
+  .metric .val{font-size:18px;font-weight:700}
+  .lab-body{display:flex;gap:24px;align-items:flex-start}
+  .viz{flex:1;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:12px;border-radius:12px;position:relative}
+  .brain-svg{width:100%;height:340px}
+  .fear-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .fear-buttons button{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:#e6eef6;cursor:pointer}
+  .fear-buttons button.active{border-color:var(--accent);box-shadow:0 4px 18px rgba(255,107,107,0.08)}
+  .desc{margin-top:12px;color:var(--muted);font-size:14px}
+  .top-row{display:flex;justify-content:space-between;align-items:center}
+  .toggle{display:flex;gap:8px;align-items:center}
+  .play-btn{background:var(--accent);color:#100a0a;padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
+  footer{color:var(--muted);font-size:12px;margin-top:8px}
+  .small{font-size:13px;color:var(--muted)}
+  .bar{height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg, #ff9b9b, #ff6b6b);width:0%}
+  .body-stats{margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .body-part{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--glass);border-radius:8px;font-size:14px}
+  .body-part.active{border:1px solid var(--accent);background:rgba(255,107,107,0.06)}
+  .fear-desc-large{font-size:16px; font-weight:600; color:#ffd166; margin-bottom:12px}
+  /* tooltip */
+  #tooltip {
+  position: absolute;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  
+  /* NEW STYLING FOR FIXED WIDTH */
+  max-width: 220px;      /* set desired width */
+  white-space: normal;   /* allow wrapping */
+  word-wrap: break-word; /* break long words if needed */
+  line-height: 1.4;      /* optional: better readability */
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- LEFT: sliders + fear selector only -->
+  <div class="panel">
+    <div class="top-row">
+      <h1>Fear Simulator</h1>
+      <div class="toggle">
+        <label class="small">Music 🎵</label>
+        <input id="soundToggle" type="checkbox" />
+      </div>
+    </div>
+
+    <p class="small">Adjust sliders to see how different factors change responses. Pick a fear to auto-load a profile.</p>
+
+    <div class="controls">
+      <div class="sl"><label>Intensity</label><input data-key="intensity" type="range" min="0" max="100" value="40" /></div>
+      <div class="sl"><label>Predictability</label><input data-key="predictability" type="range" min="0" max="100" value="30" /></div>
+      <div class="sl"><label>Control</label><input data-key="control" type="range" min="0" max="100" value="30" /></div>
+      <div class="sl"><label>Social context</label><input data-key="social" type="range" min="0" max="100" value="20" /></div>
+      <div class="sl"><label>Familiarity</label><input data-key="familiarity" type="range" min="0" max="100" value="40" /></div>
+      <div class="sl"><label>Fatigue / Stress</label><input data-key="fatigue" type="range" min="0" max="100" value="20" /></div>
+
+      <div class="small">Archetype fears</div>
+      <div class="fear-buttons" id="fearButtons"></div>
+
+      <footer>Note: visualized responses are simplified and illustrative for the purposes of this activity, and may not be fully accurate.</footer>
+    </div>
+  </div>
+
+  <!-- RIGHT: brain, body icons, description -->
+  <div class="panel lab-body">
+    <div class="viz">
+      <div id="fearDesc" class="fear-desc-large">Select a fear to see details.</div>
+
+      <div class="small" style="margin-bottom:6px;">Brain activity map <span title="Approximate locations — refer to real anatomy for accuracy">(?)</span></div>
+      <svg class="brain-svg" viewBox="0 0 600 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="illustrated brain highlighting regions">
+        <defs>
+          <filter id="glow"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <g transform="translate(60,20)">
+          <path id="brain-outline" d="M60 40 C20 40 10 80 10 120 C10 170 60 210 120 210 C140 245 190 265 250 250 C310 235 350 215 370 195 C410 195 460 160 460 120 C460 70 420 40 370 40 C350 12 300 2 240 12 C200 12 140 22 60 40z" fill="#101827" stroke="#22303f"/>
+          <ellipse id="amygdala" cx="170" cy="120" rx="28" ry="20" fill="#ff6b6b" opacity="0.12" stroke="#ff6b6b"/>
+          <ellipse id="hippocampus" cx="220" cy="150" rx="36" ry="16" fill="#6bc1ff" opacity="0.12" stroke="#6bc1ff"/>
+          <rect id="pfc" x="270" y="50" width="88" height="44" rx="18" fill="#ffd166" opacity="0.12" stroke="#ffd166"/>
+          <ellipse id="thalamus" cx="210" cy="120" rx="20" ry="14" fill="#a389ff" opacity="0.12" stroke="#a389ff"/>
+          <ellipse id="hypothalamus" cx="215" cy="140" rx="12" ry="8" fill="#ff9b9b" opacity="0.12" stroke="#ff9b9b"/>
+          <rect id="brainstem" x="240" y="180" width="20" height="48" rx="8" fill="#9fbf8f" opacity="0.12" stroke="#9fbf8f"/>
+          <rect id="sensory" x="320" y="96" width="70" height="32" rx="10" fill="#66d9ef" opacity="0.12" stroke="#66d9ef"/>
+
+          <text x="136" y="30" fill="#9fb" font-size="12">Amygdala</text>
+          <text x="200" y="175" fill="#9fb" font-size="12">Hippocampus</text>
+          <text x="320" y="45" fill="#9fb" font-size="12">Prefrontal cortex</text>
+          <text x="240" y="125" fill="#9fb" font-size="12">Thalamus</text>
+          <text x="234" y="153" fill="#9fb" font-size="12">Hypothalamus</text>
+          <text x="266" y="235" fill="#9fb" font-size="12">Brainstem</text>
+          <text x="360" y="120" fill="#9fb" font-size="12">Sensory cortex</text>
+        </g>
+      </svg>
+
+      <div class="small" style="margin-top:8px">Body systems affected</div>
+      <div class="body-stats" id="bodyStats">
+        <div id="b-heart" class="body-part">💓 Heart rate</div>
+        <div id="b-breath" class="body-part">🌬️ Breathing</div>
+        <div id="b-adrenaline" class="body-part">⚡ Adrenaline</div>
+        <div id="b-sweat" class="body-part">💧 Sweating</div>
+        <div id="b-muscle" class="body-part">💪 Muscles</div>
+        <div id="b-temp" class="body-part">🌡️ Body temp</div>
+      </div>
+
+      <div style="margin-top:16px">
+        <button id="resetBtn" class="play-btn" style="background:#4cc9f0;color:#02111a">Reset</button>
+        <button id="randomBtn" class="play-btn" style="background:#ffd166;color:#331a00;margin-left:8px">Randomize</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// --- model
+const sliders = { intensity:40, predictability:30, control:30, social:20, familiarity:40, fatigue:20 }
+
+const fearProfiles = {
+  spider:{emoji:'🕷️',intensity:60,predictability:20,control:10,social:0,familiarity:20,fatigue:10,desc:'Spiders often trigger innate disgust/fear; unpredictability + perceived lack of control drive strong amygdala responses.'},
+  thunder:{emoji:'⛈️',intensity:50,predictability:10,control:5,social:0,familiarity:50,fatigue:5,desc:'Loud unexpected sounds trigger startle responses and sympathetic activation.'},
+  jumpscare:{emoji:'😱',intensity:90,predictability:0,control:0,social:0,familiarity:10,fatigue:30,desc:'Very high intensity & zero predictability, maximal startle + adrenaline surge.'},
+  publicSpeaking:{emoji:'🎤',intensity:70,predictability:40,control:10,social:90,familiarity:30,fatigue:40,desc:'Social-evaluative threat, prefrontal regulation matters; social context dominates.'},
+  turbulence:{emoji:'✈️',intensity:60,predictability:30,control:10,social:20,familiarity:30,fatigue:20,desc:'Perceived loss of control and motion cues raise arousal, often learned/associative.'},
+  darkness:{emoji:'🌑',intensity:40,predictability:10,control:0,social:0,familiarity:20,fatigue:10,desc:'Low visibility increases uncertainty; imagination multiplies perceived threat.'},
+  horrorMovie:{emoji:'🎬',intensity:65,predictability:20,control:30,social:40,familiarity:30,fatigue:10,desc:'Mixed cues, safe setting but designed to trigger startle & suspense.'},
+  heights:{emoji:'🪂',intensity:75,predictability:50,control:10,social:0,familiarity:20,fatigue:10,desc:'Innate avoidance; vestibular cues + perceived danger cause strong physiological response.'},
+  claustrophobia:{emoji:'🚪',intensity:80,predictability:20,control:0,social:0,familiarity:10,fatigue:30,desc:'Perceived inability to escape leads to rapid sympathetic arousal.'},
+  Duckiswatchingyou:{emoji:'🐤',intensity:100,predictability:0,control:0,social:100,familiarity:0,fatigue:100,desc:'https://www.youtube.com/watch?v=5OCikMdAjdY'}
+}
+
+// --- DOM bindings
+const inputs = Array.from(document.querySelectorAll('input[type=range]'))
+inputs.forEach(s=>{
+  s.addEventListener('input', e=>{
+    const k = e.target.dataset.key
+    sliders[k] = Number(e.target.value)
+    updateAll()
+  })
+})
+
+// populate fear buttons
+const fb = document.getElementById('fearButtons')
+Object.keys(fearProfiles).forEach(key=>{
+  const b = document.createElement('button')
+  const label = key.replace(/([A-Z])/g,' $1').replace(/^./, s=>s.toUpperCase())
+  b.textContent = fearProfiles[key].emoji + ' ' + label
+  b.dataset.key = key
+  b.addEventListener('click', ()=>{ setProfile(key) })
+  fb.appendChild(b)
+})
+
+function setProfile(key){
+  const p = fearProfiles[key]
+  Object.keys(p).forEach(k=>{
+    if(sliders.hasOwnProperty(k)){
+      sliders[k] = p[k]
+      const el = document.querySelector('input[data-key="'+k+'"]')
+      if(el) el.value = p[k]
+    }
+  })
+  Array.from(fb.children).forEach(btn=>btn.classList.toggle('active', btn.dataset.key===key))
+  document.getElementById('fearDesc').textContent = p.emoji + ' ' + p.desc
+  updateAll()
+}
+
+// --- updateAll function
+function updateAll(){
+  const I = sliders.intensity/100
+  const P = sliders.predictability/100
+  const C = sliders.control/100
+  const S = sliders.social/100
+  const F = sliders.familiarity/100
+  const T = sliders.fatigue/100
+
+  const arousal = Math.max(0, (I*0.6 + (1-P)*0.15 + T*0.1 + (1-C)*0.15) * 100)
+  const stress = Math.max(0, (I*0.4 + (1-P)*0.2 + (1-C)*0.2 + T*0.2)*100)
+  const cog = Math.max(0, (I*0.3 + S*0.2 + (1-C)*0.3 + T*0.2)*100)
+
+  const hr = Math.round(60 + arousal*0.25 - (F*10) - (C*5))
+  const br = Math.round(12 + arousal*0.06 + T*4 - F*2)
+  const adrenaline = Math.round(arousal*0.9 + (1-P)*10)
+  const sweating = Math.round((arousal*0.6 + T*0.2 + (1-F)*0.2))
+  const muscle = Math.round((arousal*0.5 + (1-C)*0.4 + T*0.2))
+  const bodyT = (36.6 + (arousal-40)/300).toFixed(1)
+
+  document.getElementById('b-heart').textContent = `💓 Heart rate — ${hr} bpm`
+  document.getElementById('b-breath').textContent = `🌬️ Breathing — ${br} br/min`
+  document.getElementById('b-adrenaline').textContent = `⚡ Adrenaline — ${adrenaline}`
+  document.getElementById('b-sweat').textContent = `💧 Sweating — ${sweating}`
+  document.getElementById('b-muscle').textContent = `💪 Muscles — ${muscle}`
+  document.getElementById('b-temp').textContent = `🌡️ Body temp — ${bodyT} °C`
+
+  // Brain visuals
+  const am = document.getElementById('amygdala')
+  const hip = document.getElementById('hippocampus')
+  const pfc = document.getElementById('pfc')
+  const th = document.getElementById('thalamus')
+  const hyp = document.getElementById('hypothalamus')
+  const bs = document.getElementById('brainstem')
+  const sc = document.getElementById('sensory')
+
+  am.style.opacity = Math.min(0.95, 0.12 + arousal/200 + (1-P)*0.5)
+  am.style.fillOpacity = am.style.opacity
+  am.style.filter = arousal>60? 'url(#glow)':'none'
+
+  hip.style.opacity = Math.min(0.95, 0.12 + (1-F)*0.7)
+  hip.style.fillOpacity = hip.style.opacity
+
+  pfc.style.opacity = Math.min(0.95, 0.12 + C*0.8)
+  pfc.style.fillOpacity = pfc.style.opacity
+
+  th.style.opacity = Math.min(0.95, 0.12 + arousal/250)
+  th.style.fillOpacity = th.style.opacity
+
+  hyp.style.opacity = Math.min(0.95, 0.12 + stress/200)
+  hyp.style.fillOpacity = hyp.style.opacity
+
+  bs.style.opacity = Math.min(0.95, 0.12 + arousal/300 + T*0.3)
+  bs.style.fillOpacity = bs.style.opacity
+
+  sc.style.opacity = Math.min(0.95, 0.12 + I*0.4)
+  sc.style.fillOpacity = sc.style.opacity
+
+  const thresholds = {
+    'b-heart': hr > 80,
+    'b-breath': br > 18,
+    'b-adrenaline': adrenaline > 50,
+    'b-sweat': sweating > 20,
+    'b-muscle': muscle > 20,
+    'b-temp': parseFloat(bodyT) > 37.1
+  }
+  Object.keys(thresholds).forEach(id=>{
+    const el = document.getElementById(id)
+    if(!el) return
+    if(thresholds[id]) el.classList.add('active')
+    else el.classList.remove('active')
+  })
+
+  const red = Math.min(120, Math.round(arousal/100*120))
+  pfc.setAttribute('stroke', `rgb(${200+Math.round(red/3)}, ${160}, ${80})`)
+}
+
+// Reset & randomize
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  const defaults = { intensity:40, predictability:30, control:30, social:20, familiarity:40, fatigue:20 }
+  Object.keys(defaults).forEach(k=>{
+    sliders[k] = defaults[k]
+    const el = document.querySelector('input[data-key="'+k+'"]'); if(el) el.value = defaults[k]
+  })
+  Array.from(fb.children).forEach(b=>b.classList.remove('active'))
+  document.getElementById('fearDesc').textContent='Select a fear to see details.'
+  updateAll()
+})
+
+document.getElementById('randomBtn').addEventListener('click', ()=>{
+  Object.keys(sliders).forEach(k=>{ const v = Math.round(Math.random()*100); sliders[k]=v; const el=document.querySelector('input[data-key="'+k+'"]'); if(el) el.value=v })
+  Array.from(fb.children).forEach(b=>b.classList.remove('active'))
+  document.getElementById('fearDesc').textContent='Randomized profile.'
+  updateAll()
+})
+
+// Sound handling
+const audio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3')
+const toggle = document.getElementById('soundToggle')
+toggle.addEventListener('change', (e)=>{
+  if(e.target.checked){ audio.loop=true; audio.play().catch(()=>{/* autoplay may be blocked */}) } else { audio.pause(); audio.currentTime=0 }
+})
+
+// --- TOOLTIP LOGIC
+const tooltip = document.getElementById('tooltip')
+const brainTips = {
+  amygdala: 'Amygdala: Detects threats and triggers emotional arousal.',
+  hippocampus: 'Hippocampus: Provides context and memory for fear. Helps distinguish safe from dangerous situations.',
+  pfc: 'Prefrontal cortex: Regulates fear responses, decision-making, and risk assessment.',
+  thalamus: 'Thalamus: Sensory relay center; initial threat processing.',
+  hypothalamus: 'Hypothalamus: Activates autonomic and endocrine responses.',
+  brainstem: 'Brainstem: Basic survival responses; coordinates fight-or-flight.',
+  sensory: 'Sensory cortex: Processes incoming sensory information.'
+}
+const sliderTips = {
+  intensity:'How strong or threatening the stimulus feels. A sudden loud noise triggers stronger fear than a quiet one.',
+  predictability:'Unexpected events cause more fear than predictable ones. Surprises trigger the startle response.',
+  control:'Feeling in control reduces fear. If you can escape or manage a situation, your brain’s fear response is moderated.',
+  social:'Being watched, judged, or alone changes fear levels. Public speaking is scarier when others are observing.',
+  familiarity:'Unknown threats feel scarier than familiar ones. Novelty increases uncertainty.',
+  fatigue:'A tired or stressed body reacts more intensely to fear. Baseline arousal is higher, so even mild threats feel stronger.'
+}
+const bodyTips = {
+  'b-heart':'Heart rate changes with arousal',
+  'b-breath':'Breathing rate adjusts with stress',
+  'b-adrenaline':'Adrenaline surge in fear',
+  'b-sweat':'Sweating / perspiration level',
+  'b-muscle':'Muscle tension',
+  'b-temp':'Body temperature changes'
+}
+function showTip(e,text){ tooltip.textContent=text; tooltip.style.left=(e.pageX+12)+'px'; tooltip.style.top=(e.pageY+12)+'px'; tooltip.style.opacity=1 }
+function moveTip(e){ tooltip.style.left=(e.pageX+12)+'px'; tooltip.style.top=(e.pageY+12)+'px' }
+function hideTip(){ tooltip.style.opacity=0 }
+
+// Brain
+Object.keys(brainTips).forEach(id=>{
+  const el=document.getElementById(id)
+  if(!el) return
+  el.addEventListener('mouseenter', e=>showTip(e, brainTips[id]))
+  el.addEventListener('mousemove', moveTip)
+  el.addEventListener('mouseleave', hideTip)
+})
+// Sliders
+Object.keys(sliderTips).forEach(key=>{
+  const el=document.querySelector(`input[data-key="${key}"]`)
+  if(!el) return
+  el.addEventListener('mouseenter', e=>showTip(e, sliderTips[key]))
+  el.addEventListener('mousemove', moveTip)
+  el.addEventListener('mouseleave', hideTip)
+})
+// Body stats
+Object.keys(bodyTips).forEach(id=>{
+  const el=document.getElementById(id)
+  if(!el) return
+  el.addEventListener('mouseenter', e=>showTip(e, bodyTips[id]))
+  el.addEventListener('mousemove', moveTip)
+  el.addEventListener('mouseleave', hideTip)
+})
+
+// Initialize
+updateAll()
+</script>
+</body>
+</html>
